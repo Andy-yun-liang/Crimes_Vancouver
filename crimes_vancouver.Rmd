@@ -1,0 +1,256 @@
+---
+title: "Crimes_Vancouver"
+author: "Andy Liang"
+date: "08/06/2021"
+output: html_document
+---
+
+#Purpose
+```{r}
+#Most frequent time for different crimes in vancouver throughout the years.
+
+```
+
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+
+crime_data = read_csv("crimedata_csv_all_years.csv")
+```
+
+```{r}
+crime_data=na.omit(crime_data)
+summary(crime_data)
+str(crime_data)
+
+
+crime_dates = crime_data %>% select(TYPE:MINUTE,NEIGHBOURHOOD) %>% mutate(TOTALMINS = HOUR*60 + MINUTE) %>% mutate(DATE = make_datetime(YEAR,MONTH,DAY,HOUR,MINUTE))
+
+crime_dates$TYPE = as.factor(crime_dates$TYPE)
+crime_dates$YEAR = as.factor(crime_dates$YEAR)
+crime_dates$NEIGHBOURHOOD = as.factor(crime_dates$NEIGHBOURHOOD)
+crime_dates
+
+
+```
+
+
+
+
+#Most Frequent Type of Crime by time of the day by year
+```{r}
+#[Inclusive Start,Exclusive end)
+INTERVALS = c("12am-3am","3am-6am","6am-9am","9am-12pm","12pm-3pm","3pm-6pm","6pm-9pm","9pm-12am")
+
+total_mins = c(0,179,359,539,719,899,1079,1259,1440)
+
+#created new column for interval
+data_intervals = data.frame(INTERVALS[findInterval(crime_dates$TOTALMINS,total_mins)])
+
+#rename the column
+data_intervals=rename(data_intervals,`T_PERIOD`=`INTERVALS.findInterval.crime_dates.TOTALMINS..total_mins..`)
+
+```
+
+
+#New df for stuff i need.
+```{r}
+crime_df = cbind(crime_dates,data_intervals)
+crime_df$T_PERIOD = as.factor(crime_df$T_PERIOD)
+
+crime_df
+
+
+```
+
+#Preparation for the Heat map of type of crime vs time of crime
+```{r}
+
+crime_df2 = crime_df %>% select(TYPE,T_PERIOD) %>% group_by(T_PERIOD) %>% mutate(T_PERIOD = factor(T_PERIOD,levels=INTERVALS)) %>% arrange(T_PERIOD) %>% count(TYPE)
+
+crime_df2
+
+
+
+
+```
+
+#Heat Map of Vancouver's Type of Crime  vs Time of Crime
+```{r}
+library(reshape)
+hmapdata = as.matrix(cast(crime_df2,T_PERIOD~TYPE,value="n"))
+
+hmapdata[is.na(hmapdata)]=0
+colrs=colorRampPalette(c("white","maroon"))
+heatmap(hmapdata,Rowv = NA,Colv = NA,col=colrs(300),ylab="Time",xlab="Type of Crime",cexRow = 0.65,cexCol = 0.65,margins = c(15,7),main="Types of Crime vs Time of Crime ")
+
+
+```
+
+
+#Preparataion for the Heat map of Type of crime vs Neighborhood
+```{r}
+
+crime_df3 = crime_df %>% select(TYPE,NEIGHBOURHOOD) %>% group_by(NEIGHBOURHOOD) %>% count(TYPE)
+
+crime_df3
+
+```
+
+
+
+#Heat Map of Vancouver's Type of Crime  vs Neighborhood 
+```{r}
+hmapdata2 = as.matrix(cast(crime_df3,TYPE~NEIGHBOURHOOD,value="n"))
+
+hmapdata2[is.na(hmapdata2)]=0
+colrs2=colorRampPalette(c("white","maroon"))
+heatmap(hmapdata2,Rowv = NA,Colv = NA,col=colrs2(300),xlab="Neighborhood",ylab="Type of Crime",cexRow = 0.65,cexCol = 0.65,margins = c(10,15),main="Types of Crime vs Neighborhood ")
+
+```
+
+
+
+
+#used to convert utm into lat and long vals.
+```{r}
+library(rgdal)
+```
+
+```{r}
+
+locations = as.data.frame(cbind(crime_data$X,crime_data$Y))
+
+sputm <- SpatialPoints(locations, proj4string=CRS("+proj=utm +zone=10 +datum=WGS84")) 
+spgeo <- spTransform(sputm, CRS("+proj=longlat +datum=WGS84"))
+
+mypoints=data.frame(spgeo@coords)
+```
+
+#The crime dataset with longitude and latitude data.
+```{r}
+crime.dataset = cbind(crime_data,mypoints)
+
+```
+
+
+#filtering to 2020 and 2019
+```{r}
+head(crime.dataset)
+
+crimedata2019Q1 = crime.dataset %>% filter(YEAR==2019 & MONTH ==1) 
+
+
+crimedata2020 = crime.dataset %>% filter(YEAR==2020)
+
+```
+
+
+
+#libraries for a map
+```{r}
+library(sf)
+library(mapview)
+```
+
+
+```{r}
+table(crimedata2019Q1$NEIGHBOURHOOD)
+```
+
+
+
+#MAP of Q1 data
+```{r}
+
+mapdata2019Q1 = data.frame(cbind(crimedata2019Q1$TYPE,crimedata2019Q1$V1,crimedata2019Q1$V2))
+mapdata2019Q1$X1 = as.factor(mapdata2019Q1$X1)
+mapdata2019Q1$X2 = as.numeric(mapdata2019Q1$X2)
+mapdata2019Q1$X3 = as.numeric(mapdata2019Q1$X3)
+mapdata2019Q1
+
+
+locations.sf = st_as_sf(mapdata2019Q1,coords=c("X2","X3"),crs=4326)
+
+
+mapview(locations.sf,cex="X1",alpha=0.2,legend=TRUE)
+
+
+```
+
+
+#MERGED DATA
+```{r}
+merged_data = cbind(crime_df,mypoints)
+
+merged_data = merged_data %>% select(TYPE,YEAR,MONTH,TOTALMINS,T_PERIOD,V1,V2) %>% filter(YEAR ==2019 | YEAR == 2020)
+
+
+table(merged_data$TYPE)
+
+head(merged_data)
+```
+
+
+#MAP OF Q1 data about type of crime during different parts of a day
+
+```{r}
+map_2019_Q1_0to3am = merged_data %>% select(TYPE,YEAR,MONTH,T_PERIOD,V1,V2) %>% filter(YEAR==2019 & MONTH <=6 & T_PERIOD == "12am-3am" ) 
+
+map_2020_Q1_0to3am = merged_data %>% select(TYPE,YEAR,MONTH,T_PERIOD,V1,V2) %>% filter(YEAR==2020 & MONTH <=6 & T_PERIOD == "12am-3am" ) 
+```
+
+
+
+```{r}
+map_2019_Q1_0to3am. = map_2019_Q1_0to3am[,c(1,5,6)] 
+
+
+
+locations.sf = st_as_sf(map_2019_Q1_0to3am.,coords=c("V1","V2"),crs=4326)
+
+
+mapview(locations.sf,cex="TYPE",legend=TRUE, map.types="OpenStreetMap")
+
+
+
+```
+
+
+```{r}
+map_2020_Q1_0to3am. = map_2020_Q1_0to3am[,c(1,5,6)] 
+
+
+
+locations.sf = st_as_sf(map_2020_Q1_0to3am.,coords=c("V1","V2"),crs=4326)
+
+
+mapview(locations.sf,cex="TYPE",legend=TRUE,map.types="OpenStreetMap")
+
+
+```
+
+
+
+```{r}
+library(leaflet)
+```
+
+
+```{r}
+head(map_2019_Q1_0to3am.)
+map_2019_Q1_0to3am.$V1 = as.numeric(map_2019_Q1_0to3am.$V1)
+map_2019_Q1_0to3am.$V2 = as.numeric(map_2019_Q1_0to3am.$V2)
+
+mypoints2=data.frame(cbind(map_2019_Q1_0to3am.$V1,map_2019_Q1_0to3am.$V2))
+
+
+
+sp.data = SpatialPointsDataFrame(mypoints2,map_2019_Q1_0to3am.)
+
+map = leaflet() %>% addTiles() %>% addMarkers(data = sp.data,lng = ~V1,lat=~V2,popup = ~TYPE)
+
+map
+```
