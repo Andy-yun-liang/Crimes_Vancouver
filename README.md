@@ -8,7 +8,7 @@
 
 
 ### Background
-I have lived in Vancouver for a majority of my adolescence, splitting the other half with Hong Kong and I have been recently wondering where I would settle down as graduation is approaching soon. One of the most important factors on my list when choosing a city asides from transportation, food and job opportunities is safety. In this analysis I will answer the following questions regarding the city of Vancouver: 
+I have lived in Vancouver for the majority of my adolescence, splitting the other half with Hong Kong. I have been recently wondering where I would settle down as graduation is approaching soon. One of the most important factors on my list when choosing a city asides from transportation, food and job opportunities is safety. In this analysis I will try to answer the following questions regarding safety in the city of Vancouver: 
 
 1. What's the most prevalent type of crime?  
 2. What's the most crime intensive community? 
@@ -16,12 +16,11 @@ I have lived in Vancouver for a majority of my adolescence, splitting the other 
 
 ### Data Source and Legal Disclaimer
 The dataset used for this analysis is from the Vancouver Police Department GeoDash Open Data found at 
-https://geodash.vpd.ca/opendata/. The analysis below is purely for my own interest and should not be used for any business related decisions. As the dataset states, "Users are cautioned not to rely on the information provided to make decisions about the specific safety level of a specific location or area". For more information regarding the legality of the dataset check the legal disclaimer text.   
+https://geodash.vpd.ca/opendata/. The analysis below is purely for my own interest and should not be used for any business related decisions. As the dataset states, "Users are cautioned not to rely on the information provided to make decisions about the specific safety level of a specific location or area". For more information regarding the legality and types of crimes about the dataset check the legal disclaimer text and the VPD's crime incident description pdf. 
 
 ### Visualizations
-To Answer the questions I had, I used a stackbarplot, heatmap, and a map.
 
-The most prevalent type of crime in the city of Vancouver is theft, so make sure you don't have valuables in your  vehicles, and make sure to lock your vehicles and bikes.
+The most prevalent type of crime in the city of Vancouver is theft, so make sure you don't have valuables in your vehicles, and make sure to lock your vehicles and bikes.
 
 ![typevsneighbor](https://user-images.githubusercontent.com/73871814/149721803-f41afd09-5eae-41b8-8b86-2e1d43cf6b18.PNG)
 
