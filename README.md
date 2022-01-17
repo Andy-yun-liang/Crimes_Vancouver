@@ -40,3 +40,7 @@ Does the time of day affect the type of crime? Yes, we can see that offence agai
 
 ![typevstime](https://user-images.githubusercontent.com/73871814/149721926-88ce896d-15fb-4946-b679-3a94d6d478a3.PNG)
 
+
+
+To see the workflow, check out the crimes_van.rmd (it's an updated version of crimes_vancouver.rmd)
+
