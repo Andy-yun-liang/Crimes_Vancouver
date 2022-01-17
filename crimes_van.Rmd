@@ -1,0 +1,183 @@
+---
+title: "Crimes_Vancouver"
+author: "Andy Liang"
+date: "08/06/2021"
+output: html_document
+---
+
+#last edited
+```{r}
+#2020.1.14
+```
+
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+crime_data = read_csv("crimedata_csv_all_years.csv")
+```
+
+#In this code chunk, I removed observations with missing data, created a new dataframe with a date column, changed neighbourhood and type of crime into categorical data. Because I'm only interested in the year 2020 the data is subset to only 2020.
+```{r}
+crime_data=na.omit(crime_data)
+summary(crime_data)
+str(crime_data)
+crime_dates = crime_data %>% dplyr::select(TYPE:MINUTE,NEIGHBOURHOOD) %>% mutate(TOTALMINS = HOUR*60 + MINUTE) %>% mutate(DATE = make_datetime(YEAR,MONTH,DAY,HOUR,MINUTE))
+crime_dates$TYPE = as.factor(crime_dates$TYPE)
+crime_dates$YEAR = as.factor(crime_dates$YEAR)
+crime_dates$NEIGHBOURHOOD = as.factor(crime_dates$NEIGHBOURHOOD)
+crime_df = crime_dates %>% filter(YEAR == 2020)
+```
+
+
+
+
+#Making a new column for the most frequent type of crime by time of the day
+```{r}
+#[Inclusive Start,Exclusive end)
+INTERVALS = c("12am-3am","3am-6am","6am-9am","9am-12pm","12pm-3pm","3pm-6pm","6pm-9pm","9pm-12am")
+total_mins = c(0,179,359,539,719,899,1079,1259,1440)
+#created new column for interval
+data_intervals = data.frame(INTERVALS[findInterval(crime_df$TOTALMINS,total_mins)])
+#rename the column
+colnames(data_intervals)="T_PERIOD"
+```
+
+
+#column bind the time period with the dataset
+```{r}
+crime_df = cbind(crime_df,data_intervals)
+crime_df$T_PERIOD = as.factor(crime_df$T_PERIOD)
+crime_df
+```
+
+#Data Visualization
+
+```{r}
+crime_df %>% ggplot(aes(NEIGHBOURHOOD)) + geom_bar(aes(fill=TYPE)) + coord_flip()
+
+#looking at this barplot we can see that the Central Business District is the neighborhood with the most type of crimes
+```
+
+
+
+
+
+
+
+#Preparation for the Heat map of type of crime vs time of crime
+```{r}
+crime_df2 = crime_df %>% dplyr::select(TYPE,T_PERIOD) %>% group_by(T_PERIOD) %>% mutate(T_PERIOD = factor(T_PERIOD,levels=INTERVALS)) %>% arrange(T_PERIOD) %>% count(TYPE)
+crime_df2
+library(reshape)
+hmapdata = as.matrix(cast(crime_df2,T_PERIOD~TYPE,value="n"))
+hmapdata[is.na(hmapdata)]=0
+colrs=colorRampPalette(c("white","maroon"))
+heatmap(hmapdata,Rowv = NA,Colv = NA,col=colrs(300),ylab="Time",xlab="Type of Crime",cexRow = 0.65,cexCol = 0.65,margins = c(15,7),main="Types of Crime vs Time of Crime ")
+```
+
+
+
+
+#Heat Map of Vancouver's Type of Crime  vs Neighborhood 
+```{r}
+crime_df3 = crime_df %>% dplyr::select(TYPE,NEIGHBOURHOOD) %>% group_by(NEIGHBOURHOOD) %>% count(TYPE) 
+hmapdata2 = as.matrix(cast(crime_df3,TYPE~NEIGHBOURHOOD,value="n"))
+hmapdata2[is.na(hmapdata2)]=0
+colrs2=colorRampPalette(c("white","maroon"))
+heatmap(hmapdata2,Rowv = NA,Colv = NA,col=colrs2(300),xlab="Neighborhood",ylab="Type of Crime",cexRow = 0.65,cexCol = 0.65,margins = c(10,15),main="Types of Crime vs Neighborhood ") 
+```
+
+
+#creating a map
+
+
+#used to convert utm into lat and long vals.
+```{r}
+library(rgdal)
+```
+
+```{r}
+locations = as.data.frame(cbind(crime_data$X,crime_data$Y))
+sputm <- SpatialPoints(locations, proj4string=CRS("+proj=utm +zone=10 +datum=WGS84")) 
+spgeo <- spTransform(sputm, CRS("+proj=longlat +datum=WGS84"))
+mypoints=data.frame(spgeo@coords)
+```
+
+#The crime dataset with longitude and latitude data.
+```{r}
+crime.dataset = cbind(crime_data,mypoints)
+```
+
+
+```{r}
+library(data.table)
+library(leaflet)
+library(sp)
+library(KernSmooth)
+library(rgdal)
+library(MASS)
+library(raster)
+```
+
+
+```{r}
+crimedata2020 = crime.dataset %>% filter(YEAR==2020)
+setnames(crimedata2020, tolower(colnames(crimedata2020)))
+colnames(crimedata2020)[11] = "longitude"
+colnames(crimedata2020)[12] ="latitude"
+head(crimedata2020)
+
+```
+
+#removing garbage datapoints
+```{r}
+crimedata2020 = crimedata2020 %>% filter(longitude !=0)
+crimedata2020 = crimedata2020 %>% filter(latitude !=0)
+
+```
+
+
+```{r}
+MASS::bandwidth.nrd(as.vector(crimedata2020$longitude)) #0.01561392
+MASS::bandwidth.nrd(as.vector(crimedata2020$latitude))# 0.01025273
+```
+
+
+```{r}
+crimedata2020 = as.data.table(crimedata2020)
+```
+
+#taking a sample to make a plot as 33,000 points is too much obserations for a map
+
+```{r}
+mysample = crimedata2020[sample(nrow(crimedata2020), 3000), ]
+```
+
+
+#contour lines
+```{r}
+
+the_kde <- bkde2D(crimedata2020[ ,list(longitude,latitude)],
+              bandwidth=c(0.0018, 0.00115247), gridsize = c(300,300))
+
+kernel_d_raster <- raster(list(x=the_kde$x1 ,y=the_kde$x2 ,z = the_kde$fhat))
+
+
+kernel_d_raster@data@values[which(kernel_d_raster@data@values < 15)] <- NA
+
+
+palRaster <- colorBin("Spectral",bins=10, domain = kernel_d_raster@data@values, na.color = "transparent")
+
+## Leaflet map with raster
+leaflet() %>% addTiles() %>% 
+  addRasterImage(kernel_d_raster, 
+                 colors = palRaster, 
+                 opacity = .4) %>%
+  addLegend(pal = palRaster, 
+            values = kernel_d_raster@data@values, 
+            title = "Kernel Density of Points")
+```
+
+
