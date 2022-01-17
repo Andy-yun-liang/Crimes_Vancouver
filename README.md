@@ -8,7 +8,7 @@
 
 
 ### Background
-I have lived in Vancouver for the majority of my adolescence, splitting the other half with Hong Kong. I have been recently wondering where I would settle down as graduation is approaching soon. One of the most important factors on my list when choosing a city asides from transportation, food and job opportunities is safety. In this analysis I will try to answer the following questions regarding safety in the city of Vancouver: 
+I have lived in Vancouver for the majority of my adolescence, splitting the other half with Hong Kong. I have been recently wondering where I would settle down as graduation is approaching soon. One of the most important factors on my list when choosing a city asides from transportation, food and job opportunities is safety. In this analysis I will be using the open data collected in 2020 to answer the following questions regarding the safety in the city of Vancouver: 
 
 1. What's the most prevalent type of crime?  
 2. What's the most crime intensive community? 
